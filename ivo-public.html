@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IVO – Iligan Volunteers Organization</title>
+<link rel="icon" href="logo.png" type="image/png">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --navy:#1a2e5a; --gold:#f0a500; --light-gold:#ffd166;
+  --black:#0f0f0f; --white:#fff; --gray:#f5f5f3;
+  --muted:#8a8a8a; --border:rgba(0,0,0,0.07);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--white);color:var(--black);overflow-x:hidden}
+
+/* ── LOADER ── */
+#loader{position:fixed;inset:0;background:var(--black);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .9s,visibility .9s}
+#loader.hide{opacity:0;visibility:hidden;pointer-events:none}
+.loader-logo{width:110px;opacity:0;transform:scale(.75) translateY(28px);animation:logoIn 1.2s .3s cubic-bezier(.16,1,.3,1) forwards;filter:drop-shadow(0 0 28px rgba(240,165,0,.55))}
+
+/* slideshow styles */
+.story-slideshow{position:relative;max-width:860px;margin:0 auto;overflow:hidden;height:480px;box-shadow:0 20px 40px rgba(0,0,0,.2);border-radius:4px;}
+.story-slide{position:absolute;inset:0;opacity:0;transition:opacity .8s,transform .8s;transform:scale(1);}
+.story-slide.active{opacity:1;object-fit:Scover;width:100%;height:100%;transform:scale(1.03);}
+.story-slideshow img{width:100%;height:100%;object-fit:cover}
+/* controls for story slideshow area */
+.story-slideshow .slideshow-btn{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border:none;border-radius:50%;background:rgba(0,0,0,.35);color:#fff;cursor:pointer;z-index:3;display:flex;align-items:center;justify-content:center;transition:background .3s}
+.story-slideshow .slideshow-btn:hover{background:rgba(0,0,0,.55)}
+.story-slideshow .slideshow-btn.prev{left:14px}
+.story-slideshow .slideshow-btn.next{right:14px}
+/* adjust hero video placeholder to sit above slideshow */
+#heroVideoPlaceholder{cursor:pointer}
+#heroVideoPlaceholder .play-btn{width:78px;height:78px;border-radius:50%;background:rgba(240,165,0,.92);display:flex;align-items:center;justify-content:center;margin-bottom:18px;cursor:pointer;transition:transform .3s,background .3s;border:none;position:relative;z-index:1}
+#heroVideoPlaceholder .play-btn:hover{transform:scale(1.1);background:var(--gold)}
+@keyframes logoIn{to{opacity:1;transform:scale(1) translateY(0)}}
+.loader-name{margin-top:18px;font-family:'Cormorant Garamond',serif;font-size:1rem;letter-spacing:.42em;color:#fff;text-transform:uppercase;opacity:0;animation:fuv .8s 1.3s ease forwards}
+.loader-tagline{font-size:.62rem;letter-spacing:.24em;color:rgba(255,255,255,.35);text-transform:uppercase;margin-top:6px;opacity:0;animation:fuv .8s 1.5s ease forwards}
+.loader-bar{margin-top:28px;width:88px;height:2px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;opacity:0;animation:fuv .5s 1.6s ease forwards}
+.loader-fill{height:100%;background:linear-gradient(90deg,var(--navy),var(--gold));animation:fill 2.2s 1.7s ease forwards;width:0}
+@keyframes fill{to{width:100%}}
+@keyframes fuv{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:15px 60px;display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.94);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);transform:translateY(-100%);animation:navIn .8s 4s cubic-bezier(.16,1,.3,1) forwards}
+@keyframes navIn{to{transform:translateY(0)}}
+.nav-brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit}
+.nav-logo-img{width:38px}
+.nav-brand-text{font-family:'Cormorant Garamond',serif;font-weight:700;font-size:1.25rem;color:var(--navy)}
+.nav-brand-sub{display:block;font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.nav-links{display:flex;gap:34px;list-style:none}
+.nav-links a{text-decoration:none;color:var(--black);font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;position:relative;padding-bottom:3px;transition:color .3s}
+.nav-links a::after{content:'';position:absolute;bottom:0;left:0;width:0;height:1.5px;background:var(--gold);transition:width .35s cubic-bezier(.16,1,.3,1)}
+.nav-links a:hover{color:var(--navy)}
+.nav-links a:hover::after{width:100%}
+.nav-cta{background:var(--navy) !important;color:#fff !important;padding:10px 22px;border-radius:2px;font-size:.76rem !important;transition:background .3s,transform .2s !important}
+.nav-cta::after{display:none !important}
+.nav-cta:hover{background:var(--gold) !important;color:var(--black) !important;transform:translateY(-2px)}
+
+/* ── HERO ── */
+.hero{
+  min-height:100vh;
+  position:relative;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:0;
+}
+/* background slideshow fills whole section */
+.hero-bg{position:absolute;inset:0;z-index:1}
+.hero-bg .story-slideshow{width:100%;height:100%}
+.story-slide{position:absolute;inset:0;opacity:0;transition:opacity .8s;object-fit:cover;width:100%;height:100%}
+.story-slide.active{opacity:1}
+/* pagination dots */
+.hero-dots{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:2}
+.hero-dots .dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.5);cursor:pointer;transition:background .3s}
+.hero-dots .dot.active{background:#fff}
+
+.hero-content{max-width:680px;position:relative;z-index:3;padding:120px 60px 80px;color:#fff;}
+.hero-badge{display:inline-flex;align-items:center;gap:10px;font-size:.7rem;letter-spacing:.26em;text-transform:uppercase;color:var(--muted);margin-bottom:30px;opacity:0;animation:fuv .8s 4.2s ease forwards}
+.pulse{width:7px;height:7px;background:var(--gold);border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.7);opacity:.5}}
+.hero-title{font-family:'Cormorant Garamond',serif;font-size:clamp(2.8rem,7vw,5.8rem);font-weight:300;line-height:1.06;margin-bottom:26px;opacity:0;animation:fuv 1s 4.3s cubic-bezier(.16,1,.3,1) forwards;color:#fff}
+.hl{color:var(--navy);font-weight:600}
+.gc{color:var(--gold)}
+.hero-desc{color:rgba(255,255,255,0.85);}
+.hero-badge{color:rgba(255,255,255,0.85);}
+.hero-desc{font-size:.98rem;line-height:1.85;color:var(--muted);max-width:490px;margin-bottom:44px;opacity:0;animation:fuv .8s 4.5s ease forwards}
+.hero-actions{display:flex;gap:20px;align-items:center;flex-wrap:wrap;opacity:0;animation:fuv .8s 4.7s ease forwards}
+.btn-primary{background:var(--navy);color:#fff;padding:14px 36px;text-decoration:none;font-size:.8rem;letter-spacing:.16em;text-transform:uppercase;border-radius:2px;display:inline-block;transition:background .3s,transform .3s,box-shadow .3s;border:none;cursor:pointer;font-family:'DM Sans',sans-serif}
+.btn-primary:hover{background:var(--gold);color:var(--black);transform:translateY(-3px);box-shadow:0 12px 32px rgba(240,165,0,.25)}
+.btn-ghost{color:var(--navy);text-decoration:none;font-size:.8rem;letter-spacing:.13em;text-transform:uppercase;display:flex;align-items:center;gap:8px;transition:gap .3s;background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif}
+.btn-ghost:hover{gap:16px}
+
+
+/* ── STATS ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);background:var(--gray);gap:1px}
+.stat-item{padding:48px 36px;background:#fff;position:relative;overflow:hidden;transition:transform .4s cubic-bezier(.16,1,.3,1);cursor:default}
+.stat-item::before{content:'';position:absolute;bottom:0;left:0;width:0;height:3px;background:linear-gradient(90deg,var(--navy),var(--gold));transition:width .5s cubic-bezier(.16,1,.3,1)}
+.stat-item:hover{transform:translateY(-6px)}
+.stat-item:hover::before{width:100%}
+.stat-num{font-family:'Cormorant Garamond',serif;font-size:3.3rem;font-weight:700;color:var(--navy);line-height:1}
+.stat-num sup{font-size:1.3rem;color:var(--gold)}
+.stat-label{margin-top:10px;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+
+/* ── SECTION COMMON ── */
+.section{padding:96px 60px}
+.sec-tag{font-size:.7rem;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;display:block}
+.sec-title{font-family:'Cormorant Garamond',serif;font-size:clamp(1.9rem,4vw,3.1rem);font-weight:400;line-height:1.15;margin-bottom:18px;max-width:540px}
+.sec-desc{color:var(--muted);line-height:1.82;max-width:500px;font-size:.94rem}
+
+/* ── VIDEO ── */
+.video-sec{background:var(--black);padding:96px 60px;text-align:center}
+.video-sec .sec-tag,.video-sec .sec-title{color:#fff;max-width:100%}
+.video-sec .sec-desc{color:rgba(255,255,255,.45);margin:0 auto 48px}
+.video-wrap{max-width:860px;margin:0 auto;border-radius:4px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.6);position:relative}
+/* when video is shown in hero area keep it narrower */
+.hero-visual .video-wrap{max-width:480px;}
+.video-placeholder{aspect-ratio:16/9;background:linear-gradient(135deg,#1a2e5a,#0a0a14);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative}
+.video-placeholder::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at center,rgba(240,165,0,.1),transparent 65%)}
+.play-btn{width:78px;height:78px;border-radius:50%;background:rgba(240,165,0,.92);display:flex;align-items:center;justify-content:center;margin-bottom:18px;cursor:pointer;transition:transform .3s,background .3s;border:none;position:relative;z-index:1}
+.play-btn:hover{transform:scale(1.1);background:var(--gold)}
+.play-btn svg{width:26px;height:26px;fill:#fff;margin-left:4px}
+.video-placeholder p{color:rgba(255,255,255,.55);font-size:.88rem;letter-spacing:.1em;position:relative;z-index:1}
+.video-wrap iframe,.video-wrap video{width:100%;display:block;aspect-ratio:16/9;border:none}
+.extra-vids{max-width:860px;margin:48px auto 0;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.extra-vid-item{border-radius:3px;overflow:hidden;position:relative}
+.extra-vid-item iframe{width:100%;aspect-ratio:16/9;border:none;display:block}
+
+/* ── ACHIEVEMENTS ── */
+.ach-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:50px}
+.ach-card{background:#fff;border:1px solid var(--border);border-radius:2px;overflow:hidden;cursor:pointer;transition:transform .4s cubic-bezier(.16,1,.3,1),box-shadow .4s}
+.ach-card:hover{transform:translateY(-8px);box-shadow:0 22px 56px rgba(0,0,0,.09)}
+.ach-thumb{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:linear-gradient(135deg,#e8ecf4,#dce2ef);transition:transform .5s}
+.ach-card:hover .ach-thumb{transform:scale(1.04)}
+.ach-emoji{width:100%;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;font-size:3rem;background:linear-gradient(135deg,#e8ecf4,#dce2ef)}
+.ach-body{padding:26px}
+.ach-tag{font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:9px}
+.ach-title{font-family:'Cormorant Garamond',serif;font-size:1.2rem;margin-bottom:9px;color:var(--navy);line-height:1.3}
+.ach-desc{font-size:.82rem;color:var(--muted);line-height:1.72}
+.ach-date{margin-top:14px;font-size:.7rem;color:var(--muted)}
+.ach-more{display:inline-flex;align-items:center;gap:6px;margin-top:13px;font-size:.73rem;letter-spacing:.15em;text-transform:uppercase;color:var(--navy);background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;padding:0;transition:gap .3s}
+.ach-more:hover{gap:12px}
+
+/* ── MEMBERS ── */
+.members-sec{background:var(--gray)}
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:36px}
+.fbtn{padding:8px 20px;border:1px solid var(--border);background:#fff;font-size:.73rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:2px;transition:.3s;font-family:'DM Sans',sans-serif;color:var(--black)}
+.fbtn.active,.fbtn:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
+.members-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.mem-card{background:#fff;border-radius:2px;overflow:hidden;cursor:pointer;transition:transform .4s cubic-bezier(.16,1,.3,1),box-shadow .4s}
+.mem-card:hover{transform:translateY(-6px);box-shadow:0 16px 40px rgba(0,0,0,.08)}
+.mem-av{aspect-ratio:1;overflow:hidden;position:relative;background:linear-gradient(135deg,#e8ecf4,#dce2ef);display:flex;align-items:center;justify-content:center}
+.mem-av img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.mem-initials{font-family:'Cormorant Garamond',serif;font-size:2.4rem;font-weight:600;color:var(--navy);opacity:.35}
+.mem-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(26,46,90,.82),transparent);opacity:0;transition:opacity .4s;display:flex;align-items:flex-end;padding:14px}
+.mem-card:hover .mem-overlay{opacity:1}
+.mem-overlay-name{font-family:'Cormorant Garamond',serif;font-size:1.05rem;color:#fff}
+.mem-body{padding:18px 15px}
+.mem-name{font-family:'Cormorant Garamond',serif;font-size:.98rem;color:var(--navy);margin-bottom:4px}
+.mem-role{font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-bottom:3px}
+.mem-dept{font-size:.73rem;color:var(--muted)}
+.mem-since{font-size:.68rem;color:var(--muted);margin-top:5px}
+.mbadge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:.63rem;letter-spacing:.12em;text-transform:uppercase;margin-top:7px}
+.mbadge-officer{background:var(--navy);color:#fff}
+.mbadge-active{background:rgba(26,46,90,.08);color:var(--navy)}
+.mbadge-alumni{background:rgba(240,165,0,.12);color:#b07500}
+.empty-state{grid-column:1/-1;text-align:center;padding:60px;color:var(--muted);font-size:.88rem}
+
+/* ── EVENTS ── */
+.event-item{display:grid;grid-template-columns:110px 1fr auto;gap:34px;align-items:start;padding:32px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:.3s;position:relative}
+.event-item::before{content:'';position:absolute;left:-60px;right:-60px;top:0;bottom:0;background:transparent;transition:background .3s;z-index:-1}
+.event-item:hover::before{background:var(--gray)}
+.ev-date{text-align:center;padding:14px;border:1px solid var(--border);background:#fff;border-radius:2px}
+.ev-month{font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+.ev-day{font-family:'Cormorant Garamond',serif;font-size:2.6rem;font-weight:700;color:var(--navy);line-height:1}
+.ev-year{font-size:.68rem;color:var(--muted)}
+.ev-cat{font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+.ev-title{font-family:'Cormorant Garamond',serif;font-size:1.4rem;color:var(--navy);margin-bottom:9px;line-height:1.2}
+.ev-desc{font-size:.83rem;color:var(--muted);line-height:1.7;max-width:480px}
+.ev-meta{display:flex;gap:18px;margin-top:12px}
+.ev-meta span{font-size:.76rem;color:var(--muted);display:flex;align-items:center;gap:5px}
+.ev-badge{padding:7px 16px;border-radius:2px;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
+.ebadge-upcoming{background:rgba(26,46,90,.08);color:var(--navy)}
+.ebadge-ongoing{background:rgba(240,165,0,.14);color:#b07500}
+.ebadge-past{background:var(--gray);color:var(--muted)}
+.ev-reg{margin-top:10px;display:block;padding:9px 18px;background:var(--navy);color:#fff;border-radius:2px;font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;transition:background .3s;text-align:center;text-decoration:none}
+.ev-reg:hover{background:var(--gold);color:var(--black)}
+
+/* ── VOLUNTEER FORM ── */
+.vol-sec{background:var(--navy);padding:96px 60px;position:relative;overflow:hidden}
+.vol-bg-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Cormorant Garamond',serif;font-size:20vw;font-weight:700;color:rgba(255,255,255,.03);white-space:nowrap;user-select:none;pointer-events:none}
+.vol-inner{position:relative;z-index:2;max-width:680px;margin:0 auto}
+.vol-header{text-align:center;margin-bottom:50px}
+.vol-header .sec-title{color:#fff;margin:0 auto 14px;max-width:100%}
+.vol-header .sec-desc{color:rgba(255,255,255,.45);margin:0 auto}
+.vol-form{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.fg{display:flex;flex-direction:column;gap:7px}
+.fg.full{grid-column:1/-1}
+.flabel{font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.48)}
+.finput,.fselect,.ftextarea{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.11);color:#fff;padding:13px 15px;border-radius:2px;outline:none;font-family:'DM Sans',sans-serif;font-size:.88rem;transition:border-color .3s,background .3s;width:100%}
+.finput::placeholder{color:rgba(255,255,255,.24)}
+.finput:focus,.fselect:focus,.ftextarea:focus{border-color:var(--gold);background:rgba(255,255,255,.08)}
+.fselect option{background:#1a2e5a;color:#fff}
+.ftextarea{resize:vertical;min-height:96px}
+.fcheck{display:flex;align-items:flex-start;gap:11px}
+.fcheck input{margin-top:3px;accent-color:var(--gold)}
+.fcheck label{font-size:.8rem;color:rgba(255,255,255,.58);line-height:1.6}
+.fsub{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:14px}
+.btn-submit{width:100%;padding:15px;background:var(--gold);color:var(--black);border:none;border-radius:2px;font-size:.84rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:500;transition:transform .3s,box-shadow .3s;display:flex;align-items:center;justify-content:center;gap:10px}
+.btn-submit:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(240,165,0,.3)}
+.btn-submit:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.fnote{font-size:.73rem;color:rgba(255,255,255,.28);text-align:center;line-height:1.6}
+.form-success-block{display:none;text-align:center;padding:56px;color:#fff}
+.form-success-block .big{font-size:3rem;margin-bottom:14px}
+.form-success-block h3{font-family:'Cormorant Garamond',serif;font-size:2rem;margin-bottom:10px}
+.form-success-block p{color:rgba(255,255,255,.46)}
+.ferr{background:rgba(220,50,50,.13);border:1px solid rgba(220,50,50,.28);color:#ff6b6b;padding:11px 15px;border-radius:2px;font-size:.8rem;grid-column:1/-1;display:none}
+
+/* ── MODAL ── */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.68);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;visibility:hidden;transition:.3s;backdrop-filter:blur(5px)}
+.modal-ov.open{opacity:1;visibility:visible}
+.modal{background:#fff;max-width:680px;width:100%;max-height:90vh;overflow-y:auto;border-radius:4px;position:relative;transform:translateY(20px) scale(.97);transition:transform .3s}
+.modal-ov.open .modal{transform:translateY(0) scale(1)}
+.modal-x{position:absolute;top:14px;right:14px;width:34px;height:34px;background:var(--gray);border:none;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:background .3s;z-index:1}
+.modal-x:hover{background:var(--gold)}
+.modal-img-wrap img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
+.modal-emoji{width:100%;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;font-size:5rem;background:linear-gradient(135deg,var(--gray),#dce2ef)}
+.modal-body{padding:36px}
+.modal-tag{font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+.modal-title{font-family:'Cormorant Garamond',serif;font-size:1.9rem;color:var(--navy);margin-bottom:14px;line-height:1.2}
+.modal-desc{color:var(--muted);line-height:1.8;font-size:.9rem}
+.modal-date{margin-top:22px;font-size:.76rem;color:var(--muted);padding-top:18px;border-top:1px solid var(--border)}
+
+/* ── FOOTER ── */
+footer{background:var(--black);color:#fff;padding:58px 60px 36px}
+.foot-top{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:56px;margin-bottom:46px;padding-bottom:46px;border-bottom:1px solid rgba(255,255,255,.07)}
+.foot-logo{width:46px;margin-bottom:14px}
+.foot-name{font-family:'Cormorant Garamond',serif;font-size:1.45rem;margin-bottom:7px}
+.foot-desc{color:rgba(255,255,255,.38);font-size:.83rem;line-height:1.8}
+.foot-col-title{font-size:.66rem;letter-spacing:.28em;text-transform:uppercase;color:rgba(255,255,255,.28);margin-bottom:18px}
+.foot-links{list-style:none}
+.foot-links li{margin-bottom:9px}
+.foot-links a{text-decoration:none;color:rgba(255,255,255,.54);font-size:.84rem;transition:color .3s}
+.foot-links a:hover{color:var(--gold)}
+.foot-bottom{display:flex;justify-content:space-between;align-items:center;color:rgba(255,255,255,.2);font-size:.73rem}
+.supabase-badge{display:flex;align-items:center;gap:7px}
+.supa-dot{width:6px;height:6px;background:#3ecf8e;border-radius:50%}
+
+/* ── REVEALS ── */
+.reveal{opacity:0;transform:translateY(30px);transition:opacity .9s cubic-bezier(.16,1,.3,1),transform .9s cubic-bezier(.16,1,.3,1)}
+.reveal.vis{opacity:1;transform:translateY(0)}
+.rd1{transition-delay:.1s}.rd2{transition-delay:.2s}.rd3{transition-delay:.3s}.rd4{transition-delay:.4s}.rd5{transition-delay:.5s}
+
+/* ── CURSOR ── */
+.cursor,.cursor-ring{position:fixed;pointer-events:none;border-radius:50%;transform:translate(-50%,-50%)}
+.cursor{width:9px;height:9px;background:var(--gold);z-index:9998;transition:width .3s,height .3s;mix-blend-mode:multiply}
+.cursor-ring{width:38px;height:38px;border:1px solid rgba(240,165,0,.33);z-index:9997;transition:left .1s,top .1s,width .3s,height .3s}
+.cursor.hov{width:18px;height:18px}
+.cursor-ring.hov{width:58px;height:58px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--navy);color:#fff;padding:13px 26px;border-radius:2px;font-size:.83rem;z-index:9000;opacity:0;transition:.4s;display:flex;align-items:center;gap:9px;white-space:nowrap;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.ok{background:#1a5a2e}
+.toast.err{background:#5a1a1a}
+
+/* ── SPINNER ── */
+.spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── LOADER SKELETON ── */
+.skel{background:linear-gradient(90deg,#eee 25%,#f5f5f5 50%,#eee 75%);background-size:200% 100%;animation:skel 1.4s infinite;border-radius:2px}
+@keyframes skel{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1024px){.members-grid{grid-template-columns:repeat(3,1fr)}.foot-top{grid-template-columns:1fr 1fr}}
+@media(max-width:768px){
+  nav{padding:14px 22px}
+  .nav-links{display:none}
+  .hero{padding:100px 22px 60px}
+  .hero-visual{display:none}
+  .section,.video-sec,.vol-sec{padding:68px 22px}
+  .stats{grid-template-columns:1fr 1fr}
+  .ach-grid{grid-template-columns:1fr}
+  .members-grid{grid-template-columns:1fr 1fr}
+  .vol-form{grid-template-columns:1fr}
+  .fg.full,.fsub{grid-column:1/-1}
+  .event-item{grid-template-columns:80px 1fr;gap:18px}
+  .ev-status{grid-column:1/-1}
+  .foot-top{grid-template-columns:1fr;gap:28px}
+  .foot-bottom{flex-direction:column;gap:8px;text-align:center}
+  .extra-vids{grid-template-columns:1fr}
+  .cursor,.cursor-ring{display:none}
+}
+@media(max-width:480px){.members-grid{grid-template-columns:1fr}}
+
+/* slideshow dots */
+.story-dots{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:2}
+.story-dots .dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.5);cursor:pointer;transition:background .3s}
+.story-dots .dot.active{background:#fff}
+
+/* CTA */
+.cta-sec{padding:96px 60px;text-align:center;background:linear-gradient(135deg,var(--gray),#fff);position:relative;overflow:hidden}
+.cta-sec::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(240,165,0,.06),transparent 60%)}
+.cta-inner{position:relative;z-index:1}
+.cta-logo{width:70px;margin:0 auto 22px;opacity:.35}
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cur"></div>
+<div class="cursor-ring" id="curRing"></div>
+<div class="toast" id="toast"></div>
+
+<!-- LOADER -->
+<div id="loader">
+  <img class="loader-logo" id="loaderLogo" src="logo.png" alt="IVO"/>
+  <p class="loader-name">IVO</p>
+  <p class="loader-tagline">Iligan Volunteers Organization</p>
+  <div class="loader-bar"><div class="loader-fill"></div></div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <a href="#home" class="nav-brand">
+    <img id="navLogoImg" class="nav-logo-img" src="logo.png" alt="IVO"/>
+    <div>
+      <span class="nav-brand-text">IVO</span>
+      <span class="nav-brand-sub">Iligan Volunteers</span>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#about">About</a></li>
+    <li><a href="#video">Videos</a></li>
+    <li><a href="#achievements">Achievements</a></li>
+    <li><a href="#members">Members</a></li>
+    <li><a href="#events">Events</a></li>
+    <li><a href="#volunteer" class="nav-cta">Volunteer</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="home">
+  <div class="hero-bg">
+    <video id="heroVideo" autoplay muted loop playsinline 
+           style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1;">
+      <source src="Video.mp4" type="video/mp4">
+    </video>
+  </div>
+  
+  <div class="hero-content">
+    <span class="hero-badge"><span class="pulse"></span>Iligan City, Philippines · Est. 2012</span>
+    <h1 class="hero-title">Igniting <span class="hl">change</span><br>through <span class="gc">service.</span></h1>
+    <p class="hero-desc">The Iligan Volunteers Organization unites passionate individuals dedicated to community empowerment, disaster response, and sustainable development across Mindanao.</p>
+    <div class="hero-actions">
+      <a href="#volunteer" class="btn-primary">Become a Volunteer</a>
+      <a href="#achievements" class="btn-ghost">Our Achievements <span>→</span></a>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stat-item reveal"><div class="stat-num"><span class="counter" data-t="2400">0</span><sup>+</sup></div><div class="stat-label">Active Volunteers</div></div>
+  <div class="stat-item reveal rd1"><div class="stat-num"><span class="counter" data-t="148">0</span><sup>+</sup></div><div class="stat-label">Projects Completed</div></div>
+  <div class="stat-item reveal rd2"><div class="stat-num"><span class="counter" data-t="12">0</span></div><div class="stat-label">Years of Service</div></div>
+  <div class="stat-item reveal rd3"><div class="stat-num"><span class="counter" data-t="36">0</span></div><div class="stat-label">Barangays Reached</div></div>
+</div>
+
+<!-- VIDEO (now a photo slideshow) -->
+<section class="video-sec" id="video">
+  <span class="sec-tag reveal" style="display:block;text-align:center">Our Story</span>
+  <h2 class="sec-title reveal" style="margin:0 auto 14px;text-align:center">A Glimpse of Our Journey</h2>
+  <p class="sec-desc reveal" style="margin:0 auto 46px;text-align:center">Photos from the heart of IVO – all memories rolling by.</p>
+  <div class="story-slideshow reveal" id="storySlideshow">
+    <!-- navigation buttons -->
+    <button class="slideshow-btn prev" onclick="prevStory()">&#10094;</button>
+    <button class="slideshow-btn next" onclick="nextStory()">&#10095;</button>
+    <!-- bullet indicators for the photo slideshow -->
+    <div class="story-dots" id="storyDots"></div>
+    <!-- images will be injected by script; add URLs to `storyImages` array in JS -->
+  </div>
+</section>
+
+<!-- ACHIEVEMENTS -->
+<section class="section" id="achievements">
+  <span class="sec-tag reveal">Milestones & Moments</span>
+  <h2 class="sec-title reveal rd1">Our Achievements</h2>
+  <div class="ach-grid" id="achGrid">
+    <div style="grid-column:1/-1;padding:40px;text-align:center"><div class="skel" style="height:20px;width:200px;margin:0 auto"></div></div>
+  </div>
+</section>
+
+<!-- MEMBERS -->
+<section class="section members-sec" id="members">
+  <span class="sec-tag reveal">Our People</span>
+  <h2 class="sec-title reveal rd1">Registered Members</h2>
+  <div class="filter-row reveal rd2" id="filterRow">
+    <button class="fbtn active" onclick="filterMem('all',this)">All</button>
+    <button class="fbtn" onclick="filterMem('officer',this)">Officers</button>
+    <button class="fbtn" onclick="filterMem('active',this)">Active</button>
+    <button class="fbtn" onclick="filterMem('alumni',this)">Alumni</button>
+  </div>
+  <div class="members-grid" id="memGrid">
+    <div style="grid-column:1/-1;padding:40px;text-align:center"><div class="skel" style="height:20px;width:160px;margin:0 auto"></div></div>
+  </div>
+</section>
+
+<!-- EVENTS -->
+<section class="section" id="events">
+  <span class="sec-tag reveal">What's Coming</span>
+  <h2 class="sec-title reveal rd1">Upcoming Events</h2>
+  <div id="eventsList" style="margin-top:40px">
+    <div style="padding:40px;text-align:center"><div class="skel" style="height:20px;width:200px;margin:0 auto"></div></div>
+  </div>
+</section>
+
+<!-- VOLUNTEER FORM -->
+<section class="vol-sec" id="volunteer">
+  <div class="vol-bg-text">VOLUNTEER</div>
+  <div class="vol-inner">
+    <div class="vol-header">
+      <span class="sec-tag" style="justify-content:center;display:flex;gap:8px;align-items:center;color:var(--gold)"><span class="pulse"></span>Join the Movement</span>
+      <h2 class="sec-title">Apply as Volunteer</h2>
+      <p class="sec-desc">Fill out the form and we'll review your application. Submissions go directly to our Supabase database.</p>
+    </div>
+    <div id="volFormWrap">
+      <div class="ferr" id="ferr"></div>
+      <form class="vol-form" id="volForm" onsubmit="submitVol(event)">
+        <div class="fg"><label class="flabel">First Name *</label><input class="finput" name="first_name" required placeholder="Juan"/></div>
+        <div class="fg"><label class="flabel">Last Name *</label><input class="finput" name="last_name" required placeholder="Dela Cruz"/></div>
+        <div class="fg"><label class="flabel">Email *</label><input class="finput" type="email" name="email" required placeholder="juan@email.com"/></div>
+        <div class="fg"><label class="flabel">Phone *</label><input class="finput" name="phone" required placeholder="+63 9XX XXX XXXX"/></div>
+        <div class="fg"><label class="flabel">Age</label><input class="finput" type="number" name="age" placeholder="21" min="15" max="80"/></div>
+        <div class="fg"><label class="flabel">Gender</label>
+          <select class="fselect" name="gender">
+            <option value="">Select...</option>
+            <option>Male</option><option>Female</option><option>Non-binary</option><option>Prefer not to say</option>
+          </select>
+        </div>
+        <div class="fg full"><label class="flabel">Complete Address *</label><input class="finput" name="address" required placeholder="Barangay, City, Province"/></div>
+        <div class="fg"><label class="flabel">Occupation</label><input class="finput" name="occupation" placeholder="e.g. Nursing Student"/></div>
+        <div class="fg"><label class="flabel">Area of Interest *</label>
+          <select class="fselect" name="interest" required>
+            <option value="">Select program...</option>
+            <option>Emergency Response</option><option>Education &amp; Livelihood</option>
+            <option>Environmental Care</option><option>Health &amp; Wellness</option>
+            <option>Shelter &amp; Infrastructure</option><option>Youth Leadership</option><option>General Volunteer</option>
+          </select>
+        </div>
+        <div class="fg full"><label class="flabel">Why do you want to volunteer? *</label><textarea class="ftextarea" name="motivation" required placeholder="Tell us about yourself..."></textarea></div>
+        <div class="fg full"><label class="flabel">Previous Experience</label><textarea class="ftextarea" name="experience" placeholder="Any relevant experience (optional)..."></textarea></div>
+        <div class="fg full fcheck"><input type="checkbox" id="agree" required/><label for="agree">I agree to the IVO Code of Conduct and consent to having my information stored in IVO's secure database.</label></div>
+        <div class="fsub">
+          <button type="submit" class="btn-submit" id="submitBtn">Submit Application</button>
+          <p class="fnote">Your application will be saved to our secure database and reviewed within 3–5 business days.</p>
+        </div>
+      </form>
+    </div>
+    <div class="form-success-block" id="volSuccess">
+      <div class="big">🎉</div>
+      <h3>Application Received!</h3>
+      <p>Thank you for wanting to serve! We'll review your application and reach out within 3–5 business days.</p>
+      <button class="btn-primary" style="margin-top:22px" onclick="resetVol()">Submit Another</button>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-sec">
+  <div class="cta-inner">
+    <img id="ctaLogo" class="cta-logo" src="logo.png" alt="IVO"/>
+    <span class="sec-tag reveal" style="justify-content:center;display:flex;gap:8px;align-items:center"><span class="pulse"></span>Iligan Volunteers Organization</span>
+    <h2 class="sec-title reveal" style="margin:0 auto 14px;text-align:center;color:var(--navy)">Together, we are stronger</h2>
+    <p class="sec-desc reveal" style="margin:0 auto 36px;text-align:center">Every hand that helps, every heart that cares — makes IVO what it is.</p>
+    <a href="#volunteer" class="btn-primary reveal">Start Volunteering Today</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="foot-top">
+    <div>
+      <img id="footLogo" class="foot-logo" src="" alt="IVO"/>
+      <div class="foot-name">IVO</div>
+      <p class="foot-desc">Iligan Volunteers Organization — igniting change through service since 2012. Proudly rooted in Iligan City, Lanao del Norte.</p>
+    </div>
+    <div>
+      <div class="foot-col-title">Navigate</div>
+      <ul class="foot-links"><li><a href="#home">Home</a></li><li><a href="#video">Videos</a></li><li><a href="#achievements">Achievements</a></li><li><a href="#members">Members</a></li><li><a href="#events">Events</a></li><li><a href="#volunteer">Volunteer</a></li></ul>
+    </div>
+    <div>
+      <div class="foot-col-title">Programs</div>
+      <ul class="foot-links"><li><a href="#">Emergency Response</a></li><li><a href="#">Education</a></li><li><a href="#">Environment</a></li><li><a href="#">Health</a></li><li><a href="#">Youth Leadership</a></li></ul>
+    </div>
+    <div>
+      <div class="foot-col-title">Contact</div>
+      <ul class="foot-links"><li><a href="mailto:info@ivo.ph">info@ivo.ph</a></li><li><a href="#">Iligan City, PH</a></li><li><a href="#">Facebook</a></li><li><a href="#">Instagram</a></li></ul>
+    </div>
+  </div>
+  <div class="foot-bottom">
+    <span>© 2026 Iligan Volunteers Organization. All rights reserved.</span>
+    <span class="supabase-badge"><span class="supa-dot"></span> Powered by Supabase</span>
+  </div>
+</footer>
+
+<!-- ACH MODAL -->
+<div class="modal-ov" id="achModal">
+  <div class="modal">
+    <button class="modal-x" onclick="closeM('achModal')">✕</button>
+    <div id="achModalMedia"></div>
+    <div class="modal-body">
+      <div class="modal-tag" id="achModalTag"></div>
+      <h2 class="modal-title" id="achModalTitle"></h2>
+      <p class="modal-desc" id="achModalDesc"></p>
+      <div class="modal-date" id="achModalDate"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+
+const SUPABASE_URL = 'https://andbjdvbjwamdweenhqx.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFuZGJqZHZiandhbWR3ZWVuaHF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0NDMwMjAsImV4cCI6MjA4ODAxOTAyMH0.QQbuBzRvfjdY3EEKsnc_partp1SvMrgj5dl2s7NsI8Y';
+
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── LOGO ──
+const LOGO = 'logo.png';
+document.querySelectorAll('#navLogoImg,#ctaLogo,#footLogo').forEach(el => el.src = LOGO);
+
+// ── LOADER ──
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    document.getElementById('loader').classList.add('hide');
+    setTimeout(initApp, 600);
+  }, 3800);
+});
+
+async function initApp() {
+  await Promise.all([loadAchievements(), loadMembers(), loadEvents(), loadVideos()]);
+  initStorySlideshow(); 
+}
+// ── CURSOR ──
+const cur = document.getElementById('cur'), ring = document.getElementById('curRing');
+document.addEventListener('mousemove', e => {
+  cur.style.left = e.clientX+'px'; cur.style.top = e.clientY+'px';
+  ring.style.left = e.clientX+'px'; ring.style.top = e.clientY+'px';
+});
+document.querySelectorAll('a,button,.ach-card,.mem-card,.event-item,.stat-item').forEach(el => {
+  el.addEventListener('mouseenter',()=>{cur.classList.add('hov');ring.classList.add('hov')});
+  el.addEventListener('mouseleave',()=>{cur.classList.remove('hov');ring.classList.remove('hov')});
+});
+
+// ── REVEALS ──
+const ro = new IntersectionObserver(es => es.forEach(e => { if(e.isIntersecting) e.target.classList.add('vis') }), {threshold:.1});
+document.querySelectorAll('.reveal').forEach(el => ro.observe(el));
+
+// ── COUNTERS ──
+const co = new IntersectionObserver(es => es.forEach(e => { if(e.isIntersecting){animC(e.target);co.unobserve(e.target)} }), {threshold:.5});
+document.querySelectorAll('.counter').forEach(el => co.observe(el));
+function animC(el) {
+  const t = +el.dataset.t, d = 1800, s = t/(d/16); let c = 0;
+  const i = setInterval(()=>{ c+=s; if(c>=t){c=t;clearInterval(i)} el.textContent=Math.floor(c).toLocaleString() }, 16);
+}
+
+// ── TOAST ──
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.innerHTML = ''; t.className = 'toast'+(type?' '+type:'');
+  if(type==='loading'){const s=document.createElement('div');s.className='spin';t.appendChild(s)}
+  t.appendChild(document.createTextNode(' '+msg));
+  t.classList.add('show');
+  if(type!=='loading') setTimeout(()=>t.classList.remove('show'),3200);
+}
+function hideToast(){ document.getElementById('toast').classList.remove('show') }
+
+// ── MODALS ──
+function openM(id){document.getElementById(id).classList.add('open');document.body.style.overflow='hidden'}
+function closeM(id){document.getElementById(id).classList.remove('open');document.body.style.overflow=''}
+document.querySelectorAll('.modal-ov').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeM(m.id)}));
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') document.querySelectorAll('.modal-ov.open').forEach(m=>closeM(m.id)) });
+
+// ═════════════════════════════
+// ACHIEVEMENTS
+// ═════════════════════════════
+let allAchs = [];
+
+async function loadAchievements() {
+  const grid = document.getElementById('achGrid');
+  const { data, error } = await sb.from('achievements').select('*').order('created_at', {ascending: false});
+  if (error) { grid.innerHTML = '<div class="empty-state">Could not load achievements.</div>'; return; }
+  allAchs = data || [];
+  renderAchs(allAchs);
+}
+
+function renderAchs(list) {
+  const grid = document.getElementById('achGrid');
+  if (!list.length) { grid.innerHTML = '<div class="empty-state">No achievements yet. Check back soon!</div>'; return; }
+  grid.innerHTML = '';
+  list.forEach((a, i) => {
+    const card = document.createElement('div');
+    card.className = 'ach-card reveal';
+    card.onclick = () => openAch(a);
+    const hasImg = a.photo_url;
+    card.innerHTML = `
+      ${hasImg ? `<img class="ach-thumb" src="${a.photo_url}" alt="${a.title}" loading="lazy"/>` : `<div class="ach-emoji">${a.emoji||'🏆'}</div>`}
+      <div class="ach-body">
+        <div class="ach-tag">${a.category||''}</div>
+        <div class="ach-title">${a.title}</div>
+        <div class="ach-desc">${a.description||''}</div>
+        <div class="ach-date">📅 ${a.event_date ? new Date(a.event_date).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) : ''}</div>
+        <button class="ach-more">View Details →</button>
+      </div>`;
+    grid.appendChild(card);
+    setTimeout(()=>card.classList.add('vis'),i*60+50);
+  });
+}
+
+function openAch(a) {
+  const media = document.getElementById('achModalMedia');
+  media.innerHTML = a.photo_url ? `<div class="modal-img-wrap"><img src="${a.photo_url}" alt="${a.title}"/></div>` : `<div class="modal-emoji">${a.emoji||'🏆'}</div>`;
+  document.getElementById('achModalTag').textContent = a.category||'';
+  document.getElementById('achModalTitle').textContent = a.title;
+  document.getElementById('achModalDesc').textContent = a.description||'';
+  document.getElementById('achModalDate').textContent = '📅 ' + (a.event_date ? new Date(a.event_date).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}) : '');
+  openM('achModal');
+}
+
+// ═════════════════════════════
+// MEMBERS
+// ═════════════════════════════
+let allMembers = [];
+
+async function loadMembers() {
+  const { data, error } = await sb.from('members').select('*').order('year_joined',{ascending:true});
+  if (error) { document.getElementById('memGrid').innerHTML = '<div class="empty-state">Could not load members.</div>'; return; }
+  allMembers = data || [];
+  renderMembers(allMembers);
+}
+
+function renderMembers(list) {
+  const grid = document.getElementById('memGrid');
+  if (!list.length) { grid.innerHTML = '<div class="empty-state">No members registered yet.</div>'; return; }
+  grid.innerHTML = '';
+  list.forEach((m, i) => {
+    const initials = ((m.first_name||'')[0]||(m.name||'?')[0]).toUpperCase() + ((m.last_name||'')[0]||'').toUpperCase();
+    const badgeClass = {officer:'mbadge-officer',active:'mbadge-active',alumni:'mbadge-alumni'}[m.status]||'mbadge-active';
+    const badgeLabel = {officer:'Officer',active:'Active',alumni:'Alumni'}[m.status]||'Member';
+    const card = document.createElement('div');
+    card.className = 'mem-card reveal';
+    card.dataset.status = m.status;
+    card.innerHTML = `
+      <div class="mem-av">
+        ${m.photo_url ? `<img src="${m.photo_url}" alt="${m.first_name}" loading="lazy"/>` : ''}
+        <span class="mem-initials">${initials}</span>
+        <div class="mem-overlay"><div class="mem-overlay-name">${m.first_name||m.name} ${m.last_name||''}</div></div>
+      </div>
+      <div class="mem-body">
+        <div class="mem-name">${m.first_name||m.name} ${m.last_name||''}</div>
+        <div class="mem-role">${m.role||'Volunteer'}</div>
+        <div class="mem-dept">${m.department||''}</div>
+        <div class="mem-since">Since ${m.year_joined||'2024'}</div>
+        <span class="mbadge ${badgeClass}">${badgeLabel}</span>
+      </div>`;
+    grid.appendChild(card);
+    setTimeout(()=>card.classList.add('vis'),i*40+50);
+  });
+}
+
+function filterMem(f, btn) {
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderMembers(f==='all' ? allMembers : allMembers.filter(m=>m.status===f));
+}
+
+// ═════════════════════════════
+// EVENTS
+// ═════════════════════════════
+async function loadEvents() {
+  const list = document.getElementById('eventsList');
+  const { data, error } = await sb.from('events').select('*').order('event_date',{ascending:true});
+  if (error) { list.innerHTML = '<div class="empty-state">Could not load events.</div>'; return; }
+  const events = data || [];
+  if (!events.length) { list.innerHTML = '<div class="empty-state" style="padding:40px;text-align:center;color:var(--muted)">No events scheduled yet.</div>'; return; }
+  list.innerHTML = '';
+  events.forEach((ev, i) => {
+    const d = ev.event_date ? new Date(ev.event_date) : new Date();
+    const mon = d.toLocaleString('en-US',{month:'short'}).toUpperCase();
+    const day = d.getDate(); const yr = d.getFullYear();
+    const bc = {upcoming:'ebadge-upcoming',ongoing:'ebadge-ongoing',past:'ebadge-past'}[ev.status]||'ebadge-upcoming';
+    const bl = {upcoming:'Upcoming',ongoing:'Ongoing',past:'Past'}[ev.status]||'Upcoming';
+    const item = document.createElement('div');
+    item.className = 'event-item reveal';
+    item.innerHTML = `
+      <div class="ev-date"><div class="ev-month">${mon}</div><div class="ev-day">${day}</div><div class="ev-year">${yr}</div></div>
+      <div>
+        <div class="ev-cat">${ev.category||'Event'}</div>
+        <div class="ev-title">${ev.title}</div>
+        <div class="ev-desc">${ev.description||''}</div>
+        <div class="ev-meta">
+          ${ev.location?`<span>📍 ${ev.location}</span>`:''}
+          ${ev.expected_attendees?`<span>👥 ${ev.expected_attendees} expected</span>`:''}
+        </div>
+      </div>
+      <div class="ev-status">
+        <span class="ev-badge ${bc}">${bl}</span>
+        ${ev.status==='upcoming'?`<a class="ev-reg" href="${ev.registration_link||'#volunteer'}" ${ev.registration_link?'target="_blank"':''}>Register</a>`:''}
+      </div>`;
+    list.appendChild(item);
+    setTimeout(()=>item.classList.add('vis'),i*60+50);
+  });
+}
+
+// ═════════════════════════════
+// VIDEOS
+// ═════════════════════════════
+async function loadVideos() {
+  const { data } = await sb.from('videos').select('*').order('created_at',{ascending:true});
+  if (!data || !data.length) return;
+
+  // We are skipping the 'featured' logic for the hero because 
+  // you want "Video.mp4" hardcoded as the background.
+  
+  const grid = document.getElementById('extraVids');
+  if (grid) {
+    data.forEach(v => {
+      const div = document.createElement('div');
+      div.className = 'extra-vid-item';
+      if (v.youtube_embed_url) {
+        div.innerHTML = `<iframe src="${v.youtube_embed_url}" allowfullscreen loading="lazy"></iframe>`;
+      }
+      grid.appendChild(div);
+    });
+  }
+}
+
+// hero video helpers
+function setHeroVideo(v) {
+  const ph = document.getElementById('heroVideoPlaceholder');
+  const iframe = document.getElementById('heroIframe');
+  // hide background slideshow so video is prominent
+  const heroCont = document.getElementById('heroSlideshow');
+  const dots = document.getElementById('heroDots');
+  if (heroCont) heroCont.style.display = 'none';
+  if (dots) dots.style.display = 'none';
+  if (v.youtube_embed_url) {
+    ph.dataset.ytUrl = v.youtube_embed_url;
+  } else if (v.video_url) {
+    const vidEl = document.getElementById('heroVideo');
+    const src = vidEl.querySelector('source');
+    src.src = v.video_url;
+    vidEl.load();                        // ensure new source is loaded
+    ph.dataset.fileUrl = v.video_url;
+  }
+}
+
+function playHero() {
+  const ph = document.getElementById('heroVideoPlaceholder');
+  const iframe = document.getElementById('heroIframe');
+  const vid = document.getElementById('heroVideo');
+  if (ph.dataset.ytUrl) {
+    ph.style.display='none';
+    iframe.src = ph.dataset.ytUrl + (ph.dataset.ytUrl.includes('?')?'&':'?')+'autoplay=1';
+    iframe.style.display='block';
+  } else if (ph.dataset.fileUrl) {
+    ph.style.display='none';
+    vid.style.display='block';
+    vid.play().catch(()=>{});               // attempt autoplay
+  } else {
+    toast('No video has been set yet.', 'err');
+  }
+}
+
+// slideshow for our story (and hero background)
+const storyImages = [
+  'image 1.jpg',
+ 'image 2.jpg',
+ 'image 3.jpg',
+]; // replace with your own image URLs or file paths
+let storyIdx = 0;
+
+function advanceStory(step = 1) {
+  if (!storyImages.length) return;
+  // calculate new index first (allows manual prev/next)
+  storyIdx = (storyIdx + step + storyImages.length) % storyImages.length;
+  // main slideshow container (used in video section)
+  const cont = document.getElementById('storySlideshow');
+  if (cont) {
+    cont.innerHTML = `<img src="${storyImages[storyIdx]}" class="story-slide active" />`;
+  }
+  // hero background slideshow
+  const heroCont = document.getElementById('heroSlideshow');
+  if (heroCont) {
+    heroCont.innerHTML = `<img src="${storyImages[storyIdx]}" class="story-slide active" />`;
+  }
+  updateHeroDots();
+  updateStoryDots();
+}
+function updateHeroDots() {
+  // Leave empty to remove bullets from the hero section
+}
+
+function updateStoryDots() {
+  const dots = document.getElementById('storyDots');
+  if (!dots) return;
+  // hide dots when there's only a single photo/video
+  if (storyImages.length < 2) {
+    dots.style.display = 'none';
+    return;
+  } else {
+    dots.style.display = '';
+  }
+
+  dots.innerHTML = '';
+  storyImages.forEach((_, i) => {
+    const span = document.createElement('span');
+    span.className = 'dot' + (i === storyIdx ? ' active' : '');
+    span.addEventListener('click', () => {
+      storyIdx = i;
+      advanceStory();
+    });
+    dots.appendChild(span);
+  });
+}
+
+// manual controls for story slideshow
+function prevStory() {
+  if (!storyImages.length) return;
+  advanceStory(-1);
+}
+function nextStory() {
+  if (!storyImages.length) return;
+  advanceStory(1);
+}
+
+function initStorySlideshow() {
+  advanceStory();
+  updateStoryDots();
+  setInterval(advanceStory, 4000);
+}
+
+
+// ═════════════════════════════
+// VOLUNTEER FORM
+// ═════════════════════════════
+async function submitVol(e) {
+  e.preventDefault();
+  const form = e.target;
+  const btn = document.getElementById('submitBtn');
+  const ferr = document.getElementById('ferr');
+  ferr.style.display='none';
+  btn.disabled=true;
+  btn.innerHTML='<div class="spin"></div> Submitting...';
+  const fd = new FormData(form);
+  const payload = {};
+  fd.forEach((v,k) => payload[k]=v);
+  payload.status = 'pending';
+  payload.submitted_at = new Date().toISOString();
+  const { error } = await sb.from('volunteer_applications').insert([payload]);
+  btn.disabled=false;
+  btn.textContent='Submit Application';
+  if (error) {
+    ferr.style.display='block';
+    ferr.textContent = '⚠️ Submission error: ' + error.message + '. Please check your Supabase configuration.';
+    toast('Submission failed', 'err');
+  } else {
+    document.getElementById('volFormWrap').style.display='none';
+    document.getElementById('volSuccess').style.display='block';
+    toast('Application submitted!', 'ok');
+  }
+}
+
+function resetVol() {
+  document.getElementById('volForm').reset();
+  document.getElementById('volFormWrap').style.display='block';
+  document.getElementById('volSuccess').style.display='none';
+  document.getElementById('ferr').style.display='none';
+}
+
+// Parallax
+// animate the hero visual container (video area) instead of an image
+document.addEventListener('mousemove', e => {
+  const heroEl = document.getElementById('heroVisual');
+  if (!heroEl || !heroEl.offsetParent) return;
+  const x = (e.clientX/window.innerWidth-.5)*12;
+  const y = (e.clientY/window.innerHeight-.5)*8;
+  heroEl.style.transform = `translate(${x}px,${y}px)`;
+});
+</script>
+</body>
+</html>
